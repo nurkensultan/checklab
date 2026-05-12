@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель администратора - CheckLab Engine</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">CheckLab Engine</div>
+            <div class="user-info">
+                <span class="user-name">{{ session.full_name }} (Администратор)</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-small">Выйти</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">Информация об организации</div>
+            <div style="background: #f9fafb; padding: 1.5rem; border-radius: 8px;">
+                <p style="margin-bottom: 0.75rem;"><strong>Название:</strong> {{ organization.name }}</p>
+                <p style="margin-bottom: 0.75rem;"><strong>Краткое название:</strong> {{ organization.short_name }}</p>
+                <p style="margin-bottom: 0.75rem;">
+                    <strong>Тарифный план:</strong> 
+                    <span class="client-plan plan-{{ organization.subscription_plan }}">
+                        {% if organization.subscription_plan == 'premium' %}
+                            Premium
+                        {% elif organization.subscription_plan == 'basic' %}
+                            Basic
+                        {% else %}
+                            Free
+                        {% endif %}
+                    </span>
+                </p>
+                <p><strong>Дата регистрации:</strong> {{ organization.created_at[:10] }}</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Общая статистика</div>
+            <div class="stats-container" style="padding: 1rem 0;">
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.users }}</div>
+                    <div class="stat-label">Всего пользователей</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.works }}</div>
+                    <div class="stat-label">Лабораторных работ</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.submissions }}</div>
+                    <div class="stat-label">Выполнено заданий</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.organizations }}</div>
+                    <div class="stat-label">Организаций в системе</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Заявки (Leads)</div>
+            {% if leads|length == 0 %}
+            <p style="color: #999; text-align: center; padding: 2rem 0;">Пока нет заявок</p>
+            {% else %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Организация</th>
+                        <th>Контактное лицо</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Дата</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in leads %}
+                    <tr>
+                        <td><strong>{{ lead.organization_name }}</strong></td>
+                        <td>{{ lead.contact_name }}</td>
+                        <td>{{ lead.phone }}</td>
+                        <td>{{ lead.email or '-' }}</td>
+                        <td>{{ lead.created_at[:10] }}</td>
+                        <td>
+                            <span class="status-badge 
+                                {% if lead.status == 'new' %}status-not-started
+                                {% elif lead.status == 'contacted' %}status-in-progress
+                                {% elif lead.status == 'converted' %}status-submitted
+                                {% endif %}">
+                                {% if lead.status == 'new' %}Новая
+                                {% elif lead.status == 'contacted' %}Связались
+                                {% elif lead.status == 'converted' %}Конвертирована
+                                {% elif lead.status == 'rejected' %}Отклонена
+                                {% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-header">Быстрые действия</div>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <a href="{{ url_for('teacher_dashboard') }}" class="btn">
+                    📋 Управление работами
+                </a>
+                <a href="{{ url_for('create_work_page') }}" class="btn">
+                    ➕ Создать работу
+                </a>
+                <a href="{{ url_for('landing') }}" class="btn btn-secondary">
+                    🏠 Главная страница
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

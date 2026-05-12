@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дашборд преподавателя - CheckLab Engine</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">CheckLab Engine</div>
+            <div class="user-info">
+                <span class="user-name">{{ session.full_name }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-small">Выйти</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div class="flex-between mb-20">
+                <div class="card-header" style="margin: 0; padding: 0; border: none;">Мои работы</div>
+                <a href="{{ url_for('create_work_page') }}" class="btn">+ Создать работу</a>
+            </div>
+            
+            {% if works|length == 0 %}
+            <p style="color: #999; text-align: center; padding: 40px 0;">
+                У вас пока нет созданных работ<br>
+                <a href="{{ url_for('create_work_page') }}" class="btn mt-20">Создать первую работу</a>
+            </p>
+            {% else %}
+            <div class="cards-grid">
+                {% for work in works %}
+                <div class="work-card">
+                    <div class="work-card-title">{{ work.title }}</div>
+                    <div class="work-card-description">{{ work.description[:100] }}{% if work.description|length > 100 %}...{% endif %}</div>
+                    
+                    <div class="work-card-meta">
+                        Группа: {{ work.student_group }} | Создано: {{ work.created_at[:10] }}
+                    </div>
+                    
+                    <div class="work-card-stats">
+                        <div style="font-size: 13px; color: #666;">
+                            Сдано: <strong>{{ work.submitted_students }}/{{ work.total_students }}</strong>
+                        </div>
+                        <button class="btn btn-small" onclick="viewWork({{ work.id }})">Просмотр</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Модальное окно просмотра работы -->
+    <div id="viewWorkModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalWorkTitle">Загрузка...</h2>
+                <button class="modal-close" onclick="closeModal('viewWorkModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalWorkContent">
+                    <p style="text-align: center; color: #999;">Загрузка данных...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно просмотра ответов студента -->
+    <div id="viewAnswersModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalStudentName">Загрузка...</h2>
+                <button class="modal-close" onclick="closeModal('viewAnswersModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalAnswersContent">
+                    <p style="text-align: center; color: #999;">Загрузка ответов...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('viewAnswersModal')">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        async function viewWork(workId) {
+            openModal('viewWorkModal');
+            document.getElementById('modalWorkContent').innerHTML = '<p style="text-align: center; color: #999;">Загрузка данных...</p>';
+            
+            try {
+                const response = await fetch(`/api/work/${workId}`);
+                const data = await response.json();
+                
+                document.getElementById('modalWorkTitle').textContent = data.work.title;
+                
+                let html = `
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                        <p><strong>Описание:</strong> ${escapeHtml(data.work.description || 'Нет описания')}</p>
+                        <p><strong>Группа:</strong> ${escapeHtml(data.work.student_group)}</p>
+                        <p><strong>Создано:</strong> ${formatDate(data.work.created_at)}</p>
+                    </div>
+                    
+                    <h3 style="margin-bottom: 15px;">Шаги работы (${data.steps.length}):</h3>
+                    <div style="margin-bottom: 30px;">
+                `;
+                
+                data.steps.forEach((step, index) => {
+                    html += `
+                        <div class="step-item" style="margin-bottom: 10px;">
+                            <div class="step-header">
+                                <div style="display: flex; align-items: center;">
+                                    <span class="step-number">${index + 1}</span>
+                                    <span class="step-type-badge">${getStepTypeName(step.step_type)}</span>
+                                </div>
+                                ${step.required ? '<span class="step-required">* Обязательно</span>' : ''}
+                            </div>
+                            <div class="step-text">${escapeHtml(step.text)}</div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    </div>
+                    <h3 style="margin-bottom: 15px;">Выполнение студентами:</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Студент</th>
+                                <th>Статус</th>
+                                <th>Дата сдачи</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.submissions.forEach(sub => {
+                    let status = 'Не начато';
+                    let statusClass = 'status-not-started';
+                    
+                    if (sub.status === 'submitted') {
+                        status = 'Сдано';
+                        statusClass = 'status-submitted';
+                    } else if (sub.status === 'in_progress') {
+                        status = 'В работе';
+                        statusClass = 'status-in-progress';
+                    }
+                    
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(sub.full_name)}</td>
+                            <td><span class="status-badge ${statusClass}">${status}</span></td>
+                            <td>${sub.submitted_at ? formatDate(sub.submitted_at) : '-'}</td>
+                            <td>
+                                ${sub.submission_id ? `<button class="btn btn-small" onclick="viewAnswers(${sub.submission_id}, '${escapeHtml(sub.full_name)}')">Просмотр ответов</button>` : '-'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                `;
+                
+                document.getElementById('modalWorkContent').innerHTML = html;
+            } catch (error) {
+                console.error('Ошибка:', error);
+                document.getElementById('modalWorkContent').innerHTML = '<p style="color: #dc3545; text-align: center;">Ошибка загрузки данных</p>';
+            }
+        }
+
+        async function viewAnswers(submissionId, studentName) {
+            openModal('viewAnswersModal');
+            document.getElementById('modalStudentName').textContent = 'Ответы: ' + studentName;
+            document.getElementById('modalAnswersContent').innerHTML = '<p style="text-align: center; color: #999;">Загрузка ответов...</p>';
+            
+            try {
+                const response = await fetch(`/api/submission/${submissionId}`);
+                const data = await response.json();
+                
+                if (!data.success || data.answers.length === 0) {
+                    document.getElementById('modalAnswersContent').innerHTML = '<p style="text-align: center; color: #999;">Нет ответов</p>';
+                    return;
+                }
+                
+                let html = '';
+                data.answers.forEach((answer, index) => {
+                    html += `
+                        <div class="answer-item">
+                            <div class="answer-label">Шаг ${index + 1}: ${escapeHtml(answer.step_text)}</div>
+                            <div style="font-size: 12px; color: #999; margin-bottom: 5px;">
+                                Тип: ${getStepTypeName(answer.step_type)}
+                            </div>
+                    `;
+                    
+                    if (answer.step_type === 'checkbox') {
+                        html += `<div class="answer-content">${answer.answer_text === 'true' ? '✅ Выполнено' : '❌ Не выполнено'}</div>`;
+                    } else if (answer.step_type === 'text') {
+                        html += `<div class="answer-content">${escapeHtml(answer.answer_text || 'Нет ответа')}</div>`;
+                    } else if (answer.step_type === 'file') {
+                        if (answer.file_path) {
+                            html += `<div class="answer-content"><a href="/uploads/${answer.file_path}" class="file-link" target="_blank">📎 ${escapeHtml(answer.file_path)}</a></div>`;
+                        } else {
+                            html += `<div class="answer-content" style="color: #999;">Файл не загружен</div>`;
+                        }
+                    }
+                    
+                    html += `</div>`;
+                });
+                
+                document.getElementById('modalAnswersContent').innerHTML = html;
+            } catch (error) {
+                console.error('Ошибка:', error);
+                document.getElementById('modalAnswersContent').innerHTML = '<p style="color: #dc3545; text-align: center;">Ошибка загрузки ответов</p>';
+            }
+        }
+
+        function getStepTypeName(type) {
+            const names = {
+                'checkbox': 'Чекбокс',
+                'text': 'Текст',
+                'file': 'Файл'
+            };
+            return names[type] || type;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>

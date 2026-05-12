@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в систему - CheckLab Engine</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>CheckLab Engine</h1>
+                <p style="color: #6b7280;">Вход в систему</p>
+            </div>
+            
+            {% if error %}
+            <div class="alert alert-error">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <label for="username">Логин</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required 
+                        autofocus
+                        placeholder="Введите логин"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Пароль</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required
+                        placeholder="Введите пароль"
+                    >
+                </div>
+                
+                <button type="submit" class="btn btn-large btn-block">
+                    Войти
+                </button>
+            </form>
+            
+            <div style="margin-top: 2rem; padding: 1.5rem; background: #f9fafb; border-radius: 8px;">
+                <p style="font-size: 0.875rem; font-weight: 600; margin-bottom: 1rem; color: #374151;">Тестовые аккаунты:</p>
+                <div style="font-size: 0.8125rem; color: #6b7280; line-height: 1.8;">
+                    <p><strong>👨‍💼 Администратор:</strong> admin / admin123</p>
+                    <p><strong>👨‍🏫 Преподаватель:</strong> teacher / teacher123</p>
+                    <p><strong>👨‍🎓 Студент 1:</strong> student1 / student123</p>
+                    <p><strong>👨‍🎓 Студент 2:</strong> student2 / student123</p>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <a href="{{ url_for('landing') }}" style="color: #667eea; text-decoration: none; font-size: 0.875rem;">
+                    ← Вернуться на главную
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

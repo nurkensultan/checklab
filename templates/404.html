@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Страница не найдена</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card" style="text-align: center;">
+            <h1 style="font-size: 4rem; color: #667eea; margin-bottom: 1rem;">404</h1>
+            <h2 style="margin-bottom: 1rem;">Страница не найдена</h2>
+            <p style="color: #6b7280; margin-bottom: 2rem;">К сожалению, запрашиваемая страница не существует.</p>
+            <a href="{{ url_for('landing') }}" class="btn btn-large">Вернуться на главную</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои работы - CheckLab Engine</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">CheckLab Engine</div>
+            <div class="user-info">
+                <span class="user-name">{{ session.full_name }} ({{ session.student_group }})</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-small">Выйти</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">Мои лабораторные работы</div>
+            
+            {% if works|length == 0 %}
+            <p style="color: #999; text-align: center; padding: 40px 0;">
+                Пока нет назначенных работ
+            </p>
+            {% else %}
+            <div class="cards-grid">
+                {% for work in works %}
+                <div class="work-card">
+                    <div class="work-card-title">{{ work.title }}</div>
+                    <div class="work-card-description">{{ work.description[:100] }}{% if work.description|length > 100 %}...{% endif %}</div>
+                    
+                    <div class="work-card-meta">
+                        Создано: {{ work.created_at[:10] }}
+                    </div>
+                    
+                    <div class="work-card-stats">
+                        <div>
+                            {% if work.status == 'submitted' %}
+                                <span class="status-badge status-submitted">Сдано</span>
+                            {% elif work.status == 'in_progress' %}
+                                <span class="status-badge status-in-progress">В работе</span>
+                            {% else %}
+                                <span class="status-badge status-not-started">Не начато</span>
+                            {% endif %}
+                            
+                            {% if work.status != 'submitted' %}
+                            <br><small style="color: #999;">Прогресс: {{ work.completed_steps or 0 }}/{{ work.total_steps }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <button 
+                            class="btn btn-small" 
+                            onclick="openWorkModal({{ work.id }})"
+                            {% if work.status == 'submitted' %}style="background: #6c757d;"{% endif %}
+                        >
+                            {% if work.status == 'submitted' %}
+                                Просмотр
+                            {% elif work.status == 'in_progress' %}
+                                Продолжить
+                            {% else %}
+                                Начать
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Модальное окно выполнения работы -->
+    <div id="workModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalWorkTitle"></h2>
+                <button class="modal-close" onclick="closeModal('workModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <p id="modalWorkDescription" style="color: #666; margin-bottom: 20px;"></p>
+                
+                <div class="progress-text" id="progressText">Прогресс: 0/0</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+                </div>
+                
+                <div id="stepsContainer"></div>
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('workModal')">Закрыть</button>
+                <button class="btn btn-success" id="submitWorkBtn" onclick="submitWork()">Сдать работу</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let currentWorkData = null;
+        let currentSubmissionId = null;
+
+        async function openWorkModal(workId) {
+            try {
+                const response = await fetch(`/api/student/work/${workId}`);
+                const data = await response.json();
+                
+                if (!data.work) {
+                    alert('Ошибка загрузки работы');
+                    return;
+                }
+                
+                currentWorkData = data;
+                currentSubmissionId = data.submission.id;
+                
+                document.getElementById('modalWorkTitle').textContent = data.work.title;
+                document.getElementById('modalWorkDescription').textContent = data.work.description;
+                
+                renderSteps(data);
+                updateProgress();
+                
+                // Блокируем кнопку "Сдать", если работа уже сдана
+                const submitBtn = document.getElementById('submitWorkBtn');
+                if (data.submission.status === 'submitted') {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Работа сдана';
+                    submitBtn.classList.add('btn-secondary');
+                    submitBtn.classList.remove('btn-success');
+                } else {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Сдать работу';
+                    submitBtn.classList.add('btn-success');
+                    submitBtn.classList.remove('btn-secondary');
+                }
+                
+                openModal('workModal');
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось загрузить работу');
+            }
+        }
+
+        function renderSteps(data) {
+            const container = document.getElementById('stepsContainer');
+            container.innerHTML = '';
+            
+            const isSubmitted = data.submission.status === 'submitted';
+            
+            data.steps.forEach((step, index) => {
+                const answer = data.answers[step.id] || {};
+                const hasAnswer = answer.answer_text || answer.file_path;
+                
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'step-item' + (hasAnswer ? ' completed' : '');
+                
+                stepDiv.innerHTML = `
+                    <div class="step-header">
+                        <div style="display: flex; align-items: center;">
+                            <span class="step-number">${index + 1}</span>
+                            <span class="step-type-badge">${getStepTypeName(step.step_type)}</span>
+                        </div>
+                        ${step.required ? '<span class="step-required">* Обязательно</span>' : ''}
+                    </div>
+                    <div class="step-text">${escapeHtml(step.text)}</div>
+                    <div id="step-input-${step.id}">
+                        ${renderStepInput(step, answer, isSubmitted)}
+                    </div>
+                `;
+                
+                container.appendChild(stepDiv);
+            });
+        }
+
+        function getStepTypeName(type) {
+            const names = {
+                'checkbox': 'Чекбокс',
+                'text': 'Текст',
+                'file': 'Файл'
+            };
+            return names[type] || type;
+        }
+
+        function renderStepInput(step, answer, isSubmitted) {
+            if (step.step_type === 'checkbox') {
+                const checked = answer.answer_text === 'true' ? 'checked' : '';
+                return `
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input 
+                            type="checkbox" 
+                            ${checked} 
+                            ${isSubmitted ? 'disabled' : ''}
+                            onchange="saveAnswer(${step.id}, this.checked ? 'true' : 'false', 'checkbox')"
+                            style="margin-right: 8px; width: 18px; height: 18px;"
+                        >
+                        <span>Выполнено</span>
+                    </label>
+                `;
+            } else if (step.step_type === 'text') {
+                return `
+                    <textarea 
+                        id="text-${step.id}"
+                        placeholder="Введите ответ..."
+                        ${isSubmitted ? 'disabled' : ''}
+                        onchange="saveAnswer(${step.id}, this.value, 'text')"
+                        style="width: 100%; min-height: 80px;"
+                    >${answer.answer_text || ''}</textarea>
+                `;
+            } else if (step.step_type === 'file') {
+                let html = '';
+                if (answer.file_path) {
+                    html += `
+                        <div style="margin-bottom: 10px;">
+                            <a href="/uploads/${answer.file_path}" class="file-link" target="_blank">
+                                📎 ${answer.file_path}
+                            </a>
+                        </div>
+                    `;
+                }
+                if (!isSubmitted) {
+                    html += `
+                        <input 
+                            type="file" 
+                            id="file-${step.id}"
+                            onchange="saveFileAnswer(${step.id}, this)"
+                        >
+                    `;
+                }
+                return html;
+            }
+            return '';
+        }
+
+        async function saveAnswer(stepId, value, type) {
+            try {
+                const formData = new FormData();
+                formData.append('submission_id', currentSubmissionId);
+                formData.append('step_id', stepId);
+                formData.append('answer_text', value);
+                
+                const response = await fetch('/api/save_answer', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    updateProgress();
+                }
+            } catch (error) {
+                console.error('Ошибка сохранения:', error);
+            }
+        }
+
+        async function saveFileAnswer(stepId, input) {
+            if (!input.files || !input.files[0]) return;
+            
+            try {
+                const formData = new FormData();
+                formData.append('submission_id', currentSubmissionId);
+                formData.append('step_id', stepId);
+                formData.append('file', input.files[0]);
+                
+                const response = await fetch('/api/save_answer', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('Файл загружен');
+                    updateProgress();
+                } else {
+                    alert('Ошибка загрузки файла');
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки файла:', error);
+                alert('Ошибка загрузки файла');
+            }
+        }
+
+        function updateProgress() {
+            if (!currentWorkData) return;
+            
+            let completed = 0;
+            const total = currentWorkData.steps.length;
+            
+            currentWorkData.steps.forEach(step => {
+                const answer = currentWorkData.answers[step.id];
+                if (answer && (answer.answer_text || answer.file_path)) {
+                    completed++;
+                }
+            });
+            
+            const percentage = total > 0 ? (completed / total * 100) : 0;
+            document.getElementById('progressText').textContent = `Прогресс: ${completed}/${total}`;
+            document.getElementById('progressFill').style.width = percentage + '%';
+        }
+
+        async function submitWork() {
+            if (!confirm('Вы уверены, что хотите сдать работу? После этого редактирование будет невозможно.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/submit_work', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        submission_id: currentSubmissionId
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('Работа успешно сдана!');
+                    closeModal('workModal');
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось сдать работу');
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>

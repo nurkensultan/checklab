@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание работы - CheckLab Engine</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">CheckLab Engine</div>
+            <div class="user-info">
+                <span class="user-name">{{ session.full_name }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-small">Выйти</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">Создание лабораторной работы</div>
+            
+            <form id="createWorkForm" onsubmit="return false;">
+                <div class="form-group">
+                    <label for="title">Название работы <span style="color: #dc3545;">*</span></label>
+                    <input type="text" id="title" required placeholder="Например: Лабораторная работа №1: Основы HTML">
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Описание работы</label>
+                    <textarea id="description" rows="3" placeholder="Краткое описание целей и задач работы..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="student_group">Группа студентов <span style="color: #dc3545;">*</span></label>
+                    <select id="student_group" required>
+                        <option value="">Выберите группу</option>
+                        {% for group in groups %}
+                        <option value="{{ group }}">{{ group }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div style="margin-top: 30px; margin-bottom: 15px;">
+                    <h3>Шаги выполнения <span style="color: #dc3545;">*</span></h3>
+                    <p style="font-size: 13px; color: #666; margin-top: 5px;">Добавьте шаги, которые должен выполнить студент</p>
+                </div>
+                
+                <div id="stepsContainer" class="step-builder">
+                    <!-- Шаги будут добавляться сюда -->
+                </div>
+                
+                <div class="add-step-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="addStep('checkbox')">+ Чекбокс</button>
+                    <button type="button" class="btn btn-secondary" onclick="addStep('text')">+ Текстовый ответ</button>
+                    <button type="button" class="btn btn-secondary" onclick="addStep('file')">+ Загрузка файла</button>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f0f0; display: flex; justify-content: space-between;">
+                    <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">Отмена</a>
+                    <button type="button" class="btn btn-success" onclick="createWork()">Создать работу</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let stepCounter = 0;
+        let steps = [];
+
+        function addStep(type) {
+            stepCounter++;
+            const stepId = `step_${stepCounter}`;
+            
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'step-builder-item';
+            stepDiv.id = stepId;
+            
+            let typeName = '';
+            let placeholder = '';
+            
+            if (type === 'checkbox') {
+                typeName = 'Чекбокс';
+                placeholder = 'Например: Создал базовую структуру HTML-документа';
+            } else if (type === 'text') {
+                typeName = 'Текстовый ответ';
+                placeholder = 'Например: Какой тег используется для создания формы?';
+            } else if (type === 'file') {
+                typeName = 'Загрузка файла';
+                placeholder = 'Например: Прикрепите архив с исходным кодом проекта';
+            }
+            
+            stepDiv.innerHTML = `
+                <div class="step-builder-header">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <strong>Шаг ${stepCounter}</strong>
+                        <span class="step-type-badge">${typeName}</span>
+                    </div>
+                    <button type="button" class="step-delete-btn" onclick="removeStep('${stepId}')">&times;</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>Описание шага</label>
+                    <textarea 
+                        id="${stepId}_text" 
+                        rows="2" 
+                        placeholder="${placeholder}"
+                        required
+                    ></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input 
+                            type="checkbox" 
+                            id="${stepId}_required" 
+                            checked
+                            style="margin-right: 8px; width: 18px; height: 18px;"
+                        >
+                        <span>Обязательный шаг</span>
+                    </label>
+                </div>
+            `;
+            
+            document.getElementById('stepsContainer').appendChild(stepDiv);
+            
+            steps.push({
+                id: stepId,
+                type: type
+            });
+        }
+
+        function removeStep(stepId) {
+            const stepDiv = document.getElementById(stepId);
+            if (stepDiv) {
+                stepDiv.remove();
+            }
+            steps = steps.filter(s => s.id !== stepId);
+        }
+
+        async function createWork() {
+            // Валидация
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const studentGroup = document.getElementById('student_group').value;
+            
+            if (!title) {
+                alert('Введите название работы');
+                document.getElementById('title').focus();
+                return;
+            }
+            
+            if (!studentGroup) {
+                alert('Выберите группу студентов');
+                document.getElementById('student_group').focus();
+                return;
+            }
+            
+            if (steps.length === 0) {
+                alert('Добавьте хотя бы один шаг');
+                return;
+            }
+            
+            // Собираем данные шагов
+            const stepsData = [];
+            let hasError = false;
+            
+            for (const step of steps) {
+                const text = document.getElementById(`${step.id}_text`).value.trim();
+                const required = document.getElementById(`${step.id}_required`).checked;
+                
+                if (!text) {
+                    alert('Заполните описание для всех шагов');
+                    document.getElementById(`${step.id}_text`).focus();
+                    hasError = true;
+                    break;
+                }
+                
+                stepsData.push({
+                    type: step.type,
+                    text: text,
+                    required: required
+                });
+            }
+            
+            if (hasError) return;
+            
+            // Отправка данных
+            try {
+                const response = await fetch('/api/create_work', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        description: description,
+                        student_group: studentGroup,
+                        steps: stepsData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Работа успешно создана!');
+                    window.location.href = '{{ url_for("teacher_dashboard") }}';
+                } else {
+                    alert('Ошибка: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось создать работу. Проверьте подключение к серверу.');
+            }
+        }
+
+        // Добавляем первый шаг при загрузке страницы
+        window.addEventListener('DOMContentLoaded', function() {
+            // Можно добавить демонстрационный шаг или оставить пустым
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CheckLab Engine - современная SaaS платформа для автоматизации лабораторных работ в IT-колледжах">
+    <title>CheckLab Engine - Автоматизация лабораторных работ</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">CheckLab Engine</div>
+            <ul class="navbar-nav">
+                <li><a href="#features" class="nav-link">Возможности</a></li>
+                <li><a href="#clients" class="nav-link">Клиенты</a></li>
+                <li><a href="#contact" class="nav-link">Контакты</a></li>
+                <li><a href="{{ url_for('login_page') }}" class="btn btn-small">Войти</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <h1>Автоматизация лабораторных работ для IT-колледжей</h1>
+            <p>Современная платформа для создания интерактивных чек-листов, управления заданиями и отслеживания прогресса студентов</p>
+            <div class="hero-cta">
+                <a href="#contact" class="btn btn-large btn-white">Попробовать бесплатно</a>
+                <a href="{{ url_for('login_page') }}" class="btn btn-large btn-outline">Войти в систему</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="stats-container">
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.organizations }}+</div>
+                <div class="stat-label">Учебных заведений</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.users }}+</div>
+                <div class="stat-label">Активных пользователей</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.works }}+</div>
+                <div class="stat-label">Лабораторных работ</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">{{ stats.submissions }}+</div>
+                <div class="stat-label">Выполненных заданий</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+        <h2 class="section-title">Почему выбирают CheckLab Engine?</h2>
+        <p class="section-subtitle">Все инструменты для эффективной работы в одном месте</p>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 class="feature-title">Быстрое внедрение</h3>
+                <p class="feature-description">Начните работу за 15 минут. Интуитивный интерфейс не требует обучения. Создавайте лабораторные работы прямо в браузере.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3 class="feature-title">Прозрачный контроль</h3>
+                <p class="feature-description">Отслеживайте прогресс каждого студента в реальном времени. Статистика, отчеты и аналитика всегда под рукой.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">💾</div>
+                <h3 class="feature-title">Автосохранение</h3>
+                <p class="feature-description">Студенты никогда не потеряют свою работу. Все ответы сохраняются автоматически при каждом изменении.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📎</div>
+                <h3 class="feature-title">Работа с файлами</h3>
+                <p class="feature-description">Загрузка кода, скриншотов и архивов. Удобное хранение и просмотр всех материалов студентов.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3 class="feature-title">Безопасность данных</h3>
+                <p class="feature-description">Надежное хранение информации. Каждая организация работает в изолированной среде.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3 class="feature-title">Экономия времени</h3>
+                <p class="feature-description">Сократите время на проверку работ до 70%. Автоматическая организация материалов и структурированный вывод ответов.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Clients Section -->
+    <section id="clients" class="clients-section">
+        <h2 class="section-title">Нам доверяют</h2>
+        <p class="section-subtitle">Ведущие IT-колледжи Казахстана уже используют CheckLab Engine</p>
+        
+        <div class="clients-grid">
+            {% for client in clients %}
+            <div class="client-card">
+                <h3 class="client-name">{{ client.name }}</h3>
+                <p style="color: #6b7280; margin-bottom: 0.75rem;">{{ client.short_name }}</p>
+                <span class="client-plan plan-{{ client.subscription_plan }}">
+                    {% if client.subscription_plan == 'premium' %}
+                        Premium
+                    {% else %}
+                        Basic
+                    {% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="contact" class="cta-section">
+        <div class="cta-container">
+            <h2 class="cta-title">Готовы начать?</h2>
+            <p class="cta-subtitle">Оставьте заявку и мы свяжемся с вами для демонстрации платформы</p>
+            
+            <form id="leadForm" class="lead-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="organization_name">Название учебного заведения *</label>
+                        <input type="text" id="organization_name" name="organization_name" required placeholder="Например: Астана IT College">
+                    </div>
+                    <div class="form-group">
+                        <label for="contact_name">Ваше имя *</label>
+                        <input type="text" id="contact_name" name="contact_name" required placeholder="Иван Иванов">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="phone">Телефон *</label>
+                        <input type="tel" id="phone" name="phone" required placeholder="+7 (___) ___-__-__">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" placeholder="example@college.kz">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="message">Комментарий</label>
+                    <textarea id="message" name="message" placeholder="Расскажите о ваших потребностях..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-success btn-large btn-block">Отправить заявку</button>
+                
+                <p style="text-align: center; margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
+                    Нажимая кнопку, вы соглашаетесь с обработкой персональных данных
+                </p>
+            </form>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <p>&copy; 2024 CheckLab Engine. Все права защищены.</p>
+            <p style="margin-top: 0.5rem; opacity: 0.7;">SaaS платформа для автоматизации образовательного процесса</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
